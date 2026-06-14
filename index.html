@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -14,6 +15,25 @@
       --text: #e8eaf0; --muted: #7b8091; --font: 'Inter', sans-serif;
     }
     body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+
+    /* LOADING SCREEN */
+    #loading-screen {
+      position: fixed; inset: 0; background: var(--bg);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 9999; gap: 18px;
+    }
+    #loading-screen h2 { font-size: 1.1rem; color: var(--muted); font-weight: 400; }
+    .spinner {
+      width: 42px; height: 42px; border: 3px solid var(--border);
+      border-top-color: var(--blue); border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #load-error {
+      display: none; color: var(--red); font-size: 0.85rem; max-width: 480px;
+      text-align: center; line-height: 1.6; padding: 20px;
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    }
 
     /* HEADER */
     header {
@@ -93,7 +113,7 @@
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237b8091'/%3E%3C/svg%3E");
       background-repeat: no-repeat; background-position: right 8px center;
     }
-    .filter-bar select:hover, .filter-bar input:hover { border-color: var(--blue); }
+    .filter-bar select:hover { border-color: var(--blue); }
     .reset-btn {
       margin-left: auto; background: transparent; border: 1px solid var(--border);
       color: var(--muted); font-family: var(--font); font-size: 0.74rem; padding: 6px 12px;
@@ -105,7 +125,6 @@
     .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; }
     .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; color: var(--muted); }
     .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .legend-rect { width: 12px; height: 8px; border-radius: 2px; flex-shrink: 0; }
 
     /* TOOLTIP */
     .tooltip {
@@ -131,9 +150,7 @@
     .slider-row { display: flex; flex-direction: column; gap: 5px; }
     .slider-row label { font-size: 0.72rem; color: var(--muted); display: flex; justify-content: space-between; }
     .slider-row label span { color: var(--blue); font-weight: 600; }
-    .slider-row input[type=range] {
-      width: 100%; accent-color: var(--blue); cursor: pointer; height: 4px;
-    }
+    .slider-row input[type=range] { width: 100%; accent-color: var(--blue); cursor: pointer; height: 4px; }
     .predict-btn {
       background: var(--red); border: none; color: white; font-family: var(--font);
       font-size: 0.85rem; font-weight: 600; padding: 11px 28px; border-radius: 10px;
@@ -176,10 +193,17 @@
 </head>
 <body>
 
+<!-- LOADING SCREEN -->
+<div id="loading-screen">
+  <div class="spinner"></div>
+  <h2>Loading dashboard data…</h2>
+  <div id="load-error"></div>
+</div>
+
 <header>
   <div class="header-left">
     <h1>Diabetes <span>Readmission</span> Dashboard</h1>
-    <p>UCI 130-US Hospitals · 1999–2008 · 101,766 Patient Encounters</p>
+    <p>UCI 130-US Hospitals · 1999–2008 · <span id="hdr-encounters">—</span> Patient Encounters</p>
   </div>
   <span class="badge">DSC327 · Lab Terminal Project SP26</span>
 </header>
@@ -192,46 +216,32 @@
   <button class="tab-btn" data-tab="tab4">🧠 XAI &amp; Live Predictor</button>
 </div>
 
-<!-- ══════════════════════════════════════════════════════
-     TAB 1 — DATASET OVERVIEW
-══════════════════════════════════════════════════════ -->
+<!-- TAB 1 — DATASET OVERVIEW -->
 <div class="tab-panel active" id="tab1">
-
-  <!-- Filter Bar -->
   <div class="filter-bar">
     <label>Age Group</label>
     <select id="t1-age">
       <option value="all">All Ages</option>
-      <option>[0-10)</option><option>[10-20)</option><option>[20-30)</option>
-      <option>[30-40)</option><option>[40-50)</option><option>[50-60)</option>
-      <option>[60-70)</option><option>[70-80)</option><option>[80-90)</option>
-      <option>[90-100)</option>
     </select>
     <label>Admission Type</label>
     <select id="t1-admit">
       <option value="all">All Types</option>
-      <option>Emergency</option><option>Elective</option><option>Urgent</option>
-      <option>Newborn</option><option>Trauma Center</option>
     </select>
     <button class="reset-btn" id="t1-reset">✕ Reset</button>
   </div>
-
-  <!-- KPIs -->
   <div class="kpi-row">
-    <div class="kpi-card red"><div class="kpi-label">Readmission Rate</div><div class="kpi-value" id="k-rate">11.2%</div><div class="kpi-sub">Readmitted within 30 days</div></div>
-    <div class="kpi-card blue"><div class="kpi-label">Total Encounters</div><div class="kpi-value" id="k-total">101,766</div><div class="kpi-sub">Patient records</div></div>
-    <div class="kpi-card amber"><div class="kpi-label">Avg Hospital Stay</div><div class="kpi-value" id="k-stay">4.4 days</div><div class="kpi-sub">Mean time in hospital</div></div>
-    <div class="kpi-card green"><div class="kpi-label">Avg Medications</div><div class="kpi-value" id="k-meds">16.0</div><div class="kpi-sub">Mean per encounter</div></div>
-    <div class="kpi-card purple"><div class="kpi-label">Emergency Admits</div><div class="kpi-value">52.3%</div><div class="kpi-sub">of all admissions</div></div>
+    <div class="kpi-card red"><div class="kpi-label">Readmission Rate</div><div class="kpi-value" id="k-rate">—</div><div class="kpi-sub">Readmitted within 30 days</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">Total Encounters</div><div class="kpi-value" id="k-total">—</div><div class="kpi-sub">Patient records</div></div>
+    <div class="kpi-card amber"><div class="kpi-label">Avg Hospital Stay</div><div class="kpi-value" id="k-stay">—</div><div class="kpi-sub">Mean time in hospital</div></div>
+    <div class="kpi-card green"><div class="kpi-label">Avg Medications</div><div class="kpi-value" id="k-meds">—</div><div class="kpi-sub">Mean per encounter</div></div>
+    <div class="kpi-card purple"><div class="kpi-label">Emergency Admits</div><div class="kpi-value" id="k-emerg">—</div><div class="kpi-sub">of all admissions</div></div>
   </div>
-
-  <!-- Hero Row: Gauge + Age Bar -->
   <div class="hero-row">
     <div class="gauge-card">
       <div class="gauge-title">Overall Readmission Risk</div>
       <div class="gauge-sub">30-day readmission rate</div>
       <svg id="gauge-svg" width="200" height="150"></svg>
-      <div id="gauge-pct" style="font-size:1.9rem;font-weight:700;color:var(--red);margin-top:-8px;">11.2%</div>
+      <div id="gauge-pct" style="font-size:1.9rem;font-weight:700;color:var(--red);margin-top:-8px;">—</div>
       <div style="font-size:0.7rem;color:var(--muted);margin-top:5px;">patients readmitted early</div>
     </div>
     <div class="chart-card">
@@ -240,8 +250,6 @@
       <svg id="age-bar-svg"></svg>
     </div>
   </div>
-
-  <!-- Row 2 -->
   <div class="chart-grid">
     <div class="chart-card">
       <div class="chart-title">Readmission Class Distribution</div>
@@ -255,8 +263,6 @@
       <svg id="admit-bar-svg"></svg>
     </div>
   </div>
-
-  <!-- Row 3 -->
   <div class="chart-grid">
     <div class="chart-card">
       <div class="chart-title">Gender Distribution &amp; Readmission Rate</div>
@@ -271,11 +277,8 @@
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════
-     TAB 2 — FEATURE ANALYSIS
-══════════════════════════════════════════════════════ -->
+<!-- TAB 2 — FEATURE ANALYSIS -->
 <div class="tab-panel" id="tab2">
-
   <div class="filter-bar">
     <label>Feature Selection Method</label>
     <select id="t2-method">
@@ -291,8 +294,6 @@
     </select>
     <button class="reset-btn" id="t2-reset">✕ Reset</button>
   </div>
-
-  <!-- Feature importance bar (full width) -->
   <div class="chart-grid one" style="margin-bottom:18px;">
     <div class="chart-card full">
       <div class="chart-title" id="t2-chart-title">Feature Importance — Mutual Information</div>
@@ -300,8 +301,6 @@
       <svg id="feat-imp-svg"></svg>
     </div>
   </div>
-
-  <!-- Row 2: Scatter + Correlation heatmap -->
   <div class="chart-grid">
     <div class="chart-card full">
       <div class="chart-title">Hospital Stay vs Medications — Colored by Readmission</div>
@@ -313,8 +312,6 @@
       </div>
     </div>
   </div>
-
-  <!-- Row 3: Engineered features -->
   <div class="chart-grid">
     <div class="chart-card">
       <div class="chart-title">Engineered Features — Correlation with Readmission</div>
@@ -340,36 +337,9 @@
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════
-     TAB 3 — MODEL PERFORMANCE
-══════════════════════════════════════════════════════ -->
+<!-- TAB 3 — MODEL PERFORMANCE -->
 <div class="tab-panel" id="tab3">
-
-  <!-- Model selector cards -->
-  <div class="model-grid" id="model-cards">
-    <div class="model-card selected" data-model="lr">
-      <div class="model-name">Logistic Regression</div>
-      <div class="model-metric"><span>Accuracy</span><span class="val">61.2%</span></div>
-      <div class="model-metric"><span>ROC-AUC</span><span class="val">0.638</span></div>
-      <div class="model-metric"><span>F1-Score</span><span class="val">0.593</span></div>
-      <div class="model-metric"><span>Precision</span><span class="val">0.601</span></div>
-    </div>
-    <div class="model-card selected" data-model="rf">
-      <div class="model-name">Random Forest</div>
-      <div class="model-metric"><span>Accuracy</span><span class="val">63.8%</span></div>
-      <div class="model-metric"><span>ROC-AUC</span><span class="val">0.671</span></div>
-      <div class="model-metric"><span>F1-Score</span><span class="val">0.624</span></div>
-      <div class="model-metric"><span>Precision</span><span class="val">0.638</span></div>
-    </div>
-    <div class="model-card selected" data-model="xgb">
-      <div class="model-name">XGBoost</div>
-      <div class="model-metric"><span>Accuracy</span><span class="val">65.1%</span></div>
-      <div class="model-metric"><span>ROC-AUC</span><span class="val">0.689</span></div>
-      <div class="model-metric"><span>F1-Score</span><span class="val">0.638</span></div>
-      <div class="model-metric"><span>Precision</span><span class="val">0.651</span></div>
-    </div>
-  </div>
-
+  <div class="model-grid" id="model-cards"></div>
   <div class="filter-bar">
     <label>View</label>
     <select id="t3-view">
@@ -380,7 +350,6 @@
       <option value="fi">Feature Importance</option>
     </select>
   </div>
-
   <div class="chart-grid one">
     <div class="chart-card full">
       <div class="chart-title" id="t3-title">ROC Curves — Model Comparison</div>
@@ -391,38 +360,24 @@
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════
-     TAB 4 — XAI & LIVE PREDICTOR
-══════════════════════════════════════════════════════ -->
+<!-- TAB 4 — XAI & LIVE PREDICTOR -->
 <div class="tab-panel" id="tab4">
   <div class="chart-grid">
-
-    <!-- SHAP Importance -->
     <div class="chart-card">
       <div class="chart-title">SHAP Global Feature Importance</div>
       <div class="chart-sub">Mean |SHAP value| across all patients — top drivers of readmission</div>
       <svg id="shap-bar-svg"></svg>
     </div>
-
-    <!-- SHAP Dependence -->
     <div class="chart-card">
       <div class="chart-title">SHAP Dependence Plot</div>
       <div class="chart-sub">How a feature's value affects its SHAP contribution</div>
       <div class="filter-bar" style="margin-bottom:12px;">
         <label>Feature</label>
-        <select id="shap-feat">
-          <option value="severity_score">Severity Score</option>
-          <option value="number_inpatient">Num Inpatient</option>
-          <option value="time_in_hospital">Time in Hospital</option>
-          <option value="num_medications">Num Medications</option>
-          <option value="utilization_score">Utilization Score</option>
-        </select>
+        <select id="shap-feat"></select>
       </div>
       <svg id="shap-dep-svg"></svg>
     </div>
   </div>
-
-  <!-- Live Predictor -->
   <div class="predictor" style="margin-top:18px;">
     <h3>🔮 Live Patient Risk Predictor</h3>
     <p style="font-size:0.75rem;color:var(--muted);margin-bottom:18px;">Adjust the patient parameters below and click Predict to estimate 30-day readmission risk.</p>
@@ -453,130 +408,11 @@
 
 <script>
 // ══════════════════════════════════════════
-// DATA
+// DATA — loaded from dashboard_data.json
 // ══════════════════════════════════════════
-const AGE_ORDER = ['[0-10)','[10-20)','[20-30)','[30-40)','[40-50)','[50-60)','[60-70)','[70-80)','[80-90)','[90-100)'];
-const AGE_DATA = [
-  {age:'[0-10)',count:228,rate:5.3,n:12},{age:'[10-20)',count:912,rate:6.1,n:56},
-  {age:'[20-30)',count:1657,rate:7.2,n:119},{age:'[30-40)',count:3533,rate:8.4,n:297},
-  {age:'[40-50)',count:8718,rate:9.8,n:854},{age:'[50-60)',count:15670,rate:11.0,n:1724},
-  {age:'[60-70)',count:21962,rate:11.6,n:2547},{age:'[70-80)',count:27718,rate:12.4,n:3437},
-  {age:'[80-90)',count:18511,rate:11.8,n:2184},{age:'[90-100)',count:3857,rate:9.7,n:374}
-];
-const DONUT_DATA = [
-  {label:'No Readmission',value:54864,pct:53.9,color:'#4caf7d'},
-  {label:'Readmit >30 days',value:35411,pct:34.8,color:'#f9a825'},
-  {label:'Readmit <30 days',value:11347,pct:11.1,color:'#e74c6f'},
-  {label:'Expired/Other',value:144,pct:0.2,color:'#7b8091'}
-];
-const ADMIT_DATA = [
-  {type:'Emergency',rate:12.8,count:53272},{type:'Elective',rate:7.4,count:17665},
-  {type:'Urgent',rate:10.1,count:18020},{type:'Newborn',rate:0.2,count:10},
-  {type:'Trauma Center',rate:13.5,count:311},{type:'Not Available',rate:9.8,count:12488}
-];
-const INPATIENT_DATA = [
-  {v:'0',rate:9.1,count:73427},{v:'1',rate:15.3,count:17209},{v:'2',rate:20.8,count:6091},
-  {v:'3',rate:24.7,count:2611},{v:'4',rate:27.1,count:1218},{v:'5',rate:29.4,count:614},{v:'6+',rate:33.8,count:596}
-];
-const GENDER_DATA = [
-  {gender:'Female',count:54708,rate:10.8},{gender:'Male',count:47058,rate:11.7}
-];
+let D = null; // will hold entire dashboard_data.json
 
-// Feature importance data for 3 methods
-const FEAT_IMP = {
-  mi: [
-    {f:'number_inpatient',v:0.042},{f:'time_in_hospital',v:0.038},{f:'severity_score',v:0.036},
-    {f:'num_medications',v:0.031},{f:'composite_risk_score',v:0.029},{f:'utilization_score',v:0.027},
-    {f:'number_emergency',v:0.024},{f:'num_lab_procedures',v:0.021},{f:'discharge_type',v:0.019},
-    {f:'num_procedures',v:0.017},{f:'age_num',v:0.015},{f:'high_risk_utilization',v:0.014},
-    {f:'admission_type',v:0.013},{f:'insulin_change',v:0.011},{f:'number_outpatient',v:0.009}
-  ],
-  corr: [
-    {f:'number_inpatient',v:0.196},{f:'time_in_hospital',v:0.124},{f:'num_medications',v:0.118},
-    {f:'severity_score',v:0.112},{f:'composite_risk_score',v:0.107},{f:'number_emergency',v:0.098},
-    {f:'utilization_score',v:0.089},{f:'num_lab_procedures',v:0.073},{f:'age_num',v:0.061},
-    {f:'high_risk_utilization',v:0.058},{f:'num_procedures',v:0.044},{f:'insulin_change',v:0.039},
-    {f:'high_risk_admission',v:0.035},{f:'general_change',v:0.028},{f:'medication_load',v:0.021}
-  ],
-  rf: [
-    {f:'number_inpatient',v:0.148},{f:'time_in_hospital',v:0.129},{f:'severity_score',v:0.118},
-    {f:'num_medications',v:0.097},{f:'composite_risk_score',v:0.088},{f:'num_lab_procedures',v:0.076},
-    {f:'number_emergency',v:0.064},{f:'utilization_score',v:0.058},{f:'age_num',v:0.047},
-    {f:'discharge_type',v:0.041},{f:'admission_type',v:0.034},{f:'num_procedures',v:0.029},
-    {f:'high_risk_utilization',v:0.024},{f:'insulin_change',v:0.019},{f:'number_outpatient',v:0.014}
-  ]
-};
-
-const ENG_FEAT = [
-  {f:'composite_risk_score',v:0.107},{f:'severity_score',v:0.112},{f:'utilization_score',v:0.089},
-  {f:'high_risk_utilization',v:0.058},{f:'age_num',v:0.061},{f:'insulin_change',v:0.039},
-  {f:'general_change',v:0.028},{f:'high_risk_admission',v:0.035},{f:'medication_load',v:0.021}
-];
-
-const HIST_DATA = {
-  time_in_hospital: {bins:[1,2,3,4,5,6,7,8,9,10,11,12,13,14],counts:[9832,16471,14892,12341,10218,8134,6721,5432,4123,3215,2341,1823,987,232],mean:4.4,median:4},
-  num_medications: {bins:[1,5,10,15,20,25,30,35,40,45,50,55,60,65],counts:[892,3241,9832,14671,16231,13892,10341,7821,5234,3412,2123,1231,654,143],mean:16.0,median:15},
-  num_lab_procedures: {bins:[0,10,20,30,40,50,60,70,80,90,100,110,120,130],counts:[234,2341,6782,12341,16234,18923,15672,11234,7823,5123,3421,1823,832,234],mean:43.1,median:44},
-  num_procedures: {bins:[0,1,2,3,4,5,6],counts:[38234,27891,18234,9821,4532,2234,820],mean:1.34,median:1},
-  number_inpatient: {bins:[0,1,2,3,4,5,6],counts:[73427,17209,6091,2611,1218,614,596],mean:0.64,median:0},
-  number_emergency: {bins:[0,1,2,3,4,5,6],counts:[83742,10834,4123,1823,832,312,100],mean:0.26,median:0}
-};
-
-// ROC / PR data
-const ROC = {
-  lr:  {pts:[[0,0],[0.05,0.25],[0.1,0.42],[0.2,0.58],[0.35,0.70],[0.5,0.78],[0.65,0.84],[0.8,0.90],[1,1]],auc:0.638,color:'#4fc3f7'},
-  rf:  {pts:[[0,0],[0.04,0.28],[0.08,0.46],[0.18,0.62],[0.30,0.73],[0.45,0.81],[0.60,0.87],[0.78,0.93],[1,1]],auc:0.671,color:'#f9a825'},
-  xgb: {pts:[[0,0],[0.03,0.31],[0.07,0.49],[0.15,0.65],[0.28,0.76],[0.42,0.83],[0.57,0.89],[0.75,0.94],[1,1]],auc:0.689,color:'#e74c6f'}
-};
-const PR = {
-  lr:  {pts:[[1,0.112],[0.9,0.115],[0.7,0.124],[0.5,0.134],[0.35,0.148],[0.2,0.172],[0.1,0.212],[0.05,0.278],[0,1]],ap:0.168,color:'#4fc3f7'},
-  rf:  {pts:[[1,0.112],[0.85,0.121],[0.65,0.138],[0.48,0.158],[0.32,0.178],[0.18,0.212],[0.08,0.268],[0.03,0.341],[0,1]],ap:0.201,color:'#f9a825'},
-  xgb: {pts:[[1,0.112],[0.82,0.125],[0.62,0.145],[0.45,0.168],[0.30,0.192],[0.16,0.234],[0.07,0.298],[0.02,0.381],[0,1]],ap:0.221,color:'#e74c6f'}
-};
-const CM = {
-  lr:  {tn:55823,fp:13041,fn:9543,tp:1801,name:'Logistic Regression'},
-  rf:  {tn:58123,fp:10741,fn:8923,tp:2421,name:'Random Forest'},
-  xgb: {tn:59312,fp:9552,fn:8412,tp:2932,name:'XGBoost'}
-};
-const RADAR_METRICS = ['Accuracy','Precision','Recall','F1-Score','ROC-AUC'];
-const RADAR = {
-  lr:  {vals:[0.612,0.601,0.584,0.593,0.638],color:'#4fc3f7'},
-  rf:  {vals:[0.638,0.638,0.610,0.624,0.671],color:'#f9a825'},
-  xgb: {vals:[0.651,0.651,0.625,0.638,0.689],color:'#e74c6f'}
-};
-const FI_RF  = [{f:'number_inpatient',v:0.148},{f:'time_in_hospital',v:0.129},{f:'severity_score',v:0.118},{f:'num_medications',v:0.097},{f:'composite_risk_score',v:0.088},{f:'num_lab_procedures',v:0.076},{f:'number_emergency',v:0.064},{f:'utilization_score',v:0.058},{f:'age_num',v:0.047},{f:'discharge_type',v:0.041}];
-const FI_XGB = [{f:'severity_score',v:0.162},{f:'number_inpatient',v:0.143},{f:'time_in_hospital',v:0.121},{f:'composite_risk_score',v:0.098},{f:'num_medications',v:0.087},{f:'utilization_score',v:0.072},{f:'num_lab_procedures',v:0.064},{f:'age_num',v:0.051},{f:'number_emergency',v:0.044},{f:'high_risk_utilization',v:0.038}];
-
-// SHAP data
-const SHAP_GLOBAL = [
-  {f:'severity_score',v:0.142},{f:'number_inpatient',v:0.131},{f:'time_in_hospital',v:0.118},
-  {f:'composite_risk_score',v:0.097},{f:'num_medications',v:0.082},{f:'utilization_score',v:0.071},
-  {f:'num_lab_procedures',v:0.063},{f:'age_num',v:0.048},{f:'number_emergency',v:0.041},
-  {f:'high_risk_utilization',v:0.035},{f:'discharge_type',v:0.028},{f:'insulin_change',v:0.021}
-];
-const SHAP_DEP = {
-  severity_score:    {xRange:[0,60],  slope:0.0042, noise:0.8,  mean:15},
-  number_inpatient:  {xRange:[0,8],   slope:0.042,  noise:0.6,  mean:0.64},
-  time_in_hospital:  {xRange:[1,14],  slope:0.028,  noise:0.5,  mean:4.4},
-  num_medications:   {xRange:[1,65],  slope:0.012,  noise:0.7,  mean:16},
-  utilization_score: {xRange:[0,15],  slope:0.038,  noise:0.7,  mean:1.5}
-};
-
-// Predictor config
-const PRED_CONFIG = [
-  {id:'time_in_hospital',label:'Days in Hospital',min:1,max:14,median:4,step:1},
-  {id:'num_medications',label:'Num Medications',min:1,max:65,median:15,step:1},
-  {id:'num_lab_procedures',label:'Lab Procedures',min:0,max:130,median:44,step:1},
-  {id:'number_inpatient',label:'Prior Inpatient Visits',min:0,max:10,median:0,step:1},
-  {id:'number_emergency',label:'Prior Emergency Visits',min:0,max:10,median:0,step:1},
-  {id:'age_num',label:'Age (midpoint)',min:5,max:95,median:65,step:10},
-  {id:'num_procedures',label:'Num Procedures',min:0,max:6,median:1,step:1},
-  {id:'number_outpatient',label:'Prior Outpatient Visits',min:0,max:10,median:0,step:1},
-];
-
-// ══════════════════════════════════════════
-// TOOLTIP
-// ══════════════════════════════════════════
+// ── Tooltip ──
 const ttEl = d3.select('#tooltip');
 function showTip(html,e){ ttEl.html(html).style('opacity',1); moveTip(e); }
 function moveTip(e){
@@ -587,17 +423,123 @@ function moveTip(e){
 }
 function hideTip(){ ttEl.style('opacity',0); }
 
-// ══════════════════════════════════════════
-// HELPERS
-// ══════════════════════════════════════════
+// ── Helpers ──
 function svgW(id){ return document.getElementById(id).parentElement.clientWidth - 44; }
 function fmt(n){ return d3.format(',')(n); }
 
 // ══════════════════════════════════════════
+// LOAD JSON
+// ══════════════════════════════════════════
+async function loadData() {
+  try {
+    const res = await fetch('dashboard_data.json');
+    if (!res.ok) throw new Error(`HTTP ${res.status} — ${res.statusText}`);
+    D = await res.json();
+    initDashboard();
+  } catch(err) {
+    const errEl = document.getElementById('load-error');
+    errEl.style.display = 'block';
+    errEl.innerHTML = `
+      <strong>⚠️ Could not load dashboard_data.json</strong><br><br>
+      Make sure <code>dashboard_data.json</code> is in the same folder as this HTML file.<br><br>
+      Run the export cell at the end of the notebook to generate it, then open this file again.<br><br>
+      <em>Error: ${err.message}</em>
+    `;
+    document.querySelector('#loading-screen .spinner').style.display = 'none';
+    document.querySelector('#loading-screen h2').style.display = 'none';
+  }
+}
+
+function initDashboard() {
+  document.getElementById('loading-screen').style.display = 'none';
+
+  // Populate dynamic dropdowns
+  populateFilters();
+  buildModelCards();
+  buildSliders();
+  populateSHAPFeatSelect();
+
+  // Init KPIs + Tab1
+  updateKPIs();
+  drawGauge(D.kpi.readmission_rate);
+  drawAgeBar();
+  drawDonut();
+  drawAdmitBar();
+  drawGender();
+  drawInpatient();
+
+  // Header
+  document.getElementById('hdr-encounters').textContent = fmt(D.kpi.total_encounters);
+  document.getElementById('k-stay').textContent = D.kpi.avg_stay + ' days';
+  document.getElementById('k-meds').textContent = D.kpi.avg_meds;
+  document.getElementById('k-emerg').textContent = D.kpi.emergency_pct + '%';
+
+  // Tab switching
+  setupTabs();
+  setupFilterListeners();
+}
+
+// ── Populate filter dropdowns from real data ──
+function populateFilters() {
+  const ageSelect = document.getElementById('t1-age');
+  const AGE_ORDER = ['[0-10)','[10-20)','[20-30)','[30-40)','[40-50)',
+                     '[50-60)','[60-70)','[70-80)','[80-90)','[90-100)'];
+  AGE_ORDER.forEach(a => {
+    const o = document.createElement('option');
+    o.value = o.textContent = a;
+    ageSelect.appendChild(o);
+  });
+  const admitSelect = document.getElementById('t1-admit');
+  D.admit_data.forEach(d => {
+    const o = document.createElement('option');
+    o.value = o.textContent = d.type;
+    admitSelect.appendChild(o);
+  });
+}
+
+function populateSHAPFeatSelect() {
+  const sel = document.getElementById('shap-feat');
+  sel.innerHTML = '';
+  Object.keys(D.shap_dep).forEach(feat => {
+    const o = document.createElement('option');
+    o.value = feat; o.textContent = feat;
+    sel.appendChild(o);
+  });
+}
+
+// ── Build model cards from data ──
+function buildModelCards() {
+  const container = document.getElementById('model-cards');
+  container.innerHTML = '';
+  const RADAR_METRICS = ['Accuracy','Precision','Recall','F1-Score','ROC-AUC'];
+  const mNames = {lr:'Logistic Regression', rf:'Random Forest', xgb:'XGBoost'};
+  ['lr','rf','xgb'].forEach(key => {
+    const r = D.radar[key];
+    const card = document.createElement('div');
+    card.className = 'model-card selected';
+    card.dataset.model = key;
+    card.innerHTML = `<div class="model-name">${mNames[key]}</div>` +
+      RADAR_METRICS.map((m,i)=>
+        `<div class="model-metric"><span>${m}</span><span class="val">${
+          m==='ROC-AUC' ? r.vals[i].toFixed(3) : (r.vals[i]*100).toFixed(1)+'%'
+        }</span></div>`
+      ).join('');
+    card.addEventListener('click', function(){
+      if(selectedModels.has(key)){
+        if(selectedModels.size>1){ selectedModels.delete(key); card.classList.remove('selected'); }
+      } else { selectedModels.add(key); card.classList.add('selected'); }
+      renderT3();
+    });
+    container.appendChild(card);
+  });
+}
+
+let selectedModels = new Set(['lr','rf','xgb']);
+let t1Age = 'all', t1Admit = 'all';
+
+// ══════════════════════════════════════════
 // TAB 1 CHARTS
 // ══════════════════════════════════════════
-let t1Age='all', t1Admit='all';
-
 function drawGauge(pct){
   const s=d3.select('#gauge-svg'); s.selectAll('*').remove();
   const W=200,H=150,cx=100,cy=125,r=82,iR=57;
@@ -605,11 +547,14 @@ function drawGauge(pct){
   const fill=d3.arc().innerRadius(iR).outerRadius(r).cornerRadius(3).startAngle(-Math.PI/1.35);
   s.append('path').attr('transform',`translate(${cx},${cy})`).attr('d',bg()).attr('fill','#2e3450');
   const p=s.append('path').attr('transform',`translate(${cx},${cy})`).attr('fill','#e74c6f');
-  const tgt=-Math.PI/1.35 + (pct/100)*(Math.PI/1.35)*2;
+  const tgt=-Math.PI/1.35+(pct/100)*(Math.PI/1.35)*2;
   p.datum({endAngle:-Math.PI/1.35}).attr('d',fill)
    .transition().duration(1200).ease(d3.easeCubicOut)
    .attrTween('d',function(d){ const i=d3.interpolate(d.endAngle,tgt); return t=>{d.endAngle=i(t);return fill(d);}; });
 }
+
+const AGE_ORDER = ['[0-10)','[10-20)','[20-30)','[30-40)','[40-50)',
+                   '[50-60)','[60-70)','[70-80)','[80-90)','[90-100)'];
 
 function drawAgeBar(fa='all'){
   const W=svgW('age-bar-svg'), H=230, m={t:10,r:20,b:55,l:46};
@@ -621,19 +566,19 @@ function drawAgeBar(fa='all'){
   g.append('g').attr('class','grid').call(d3.axisLeft(y).ticks(5).tickSize(-iW).tickFormat(''));
   g.append('g').attr('class','axis').attr('transform',`translate(0,${iH})`).call(d3.axisBottom(x)).selectAll('text').attr('transform','rotate(-35)').style('text-anchor','end');
   g.append('g').attr('class','axis').call(d3.axisLeft(y).ticks(5).tickFormat(d=>d+'%'));
-  g.selectAll('.bar').data(AGE_DATA).join('rect').attr('class','bar')
+  g.selectAll('.bar').data(D.age_data).join('rect').attr('class','bar')
     .attr('x',d=>x(d.age)).attr('y',iH).attr('width',x.bandwidth()).attr('height',0).attr('rx',4)
     .attr('fill',d=>fa!=='all'&&d.age===fa?'#f9a825':d.rate>11.5?'#e74c6f':'#4fc3f7')
     .attr('opacity',d=>fa!=='all'&&d.age!==fa?0.25:0.85)
     .transition().duration(700).ease(d3.easeCubicOut)
     .attr('y',d=>y(d.rate)).attr('height',d=>iH-y(d.rate));
-  g.selectAll('.bov').data(AGE_DATA).join('rect').attr('class','bov')
+  g.selectAll('.bov').data(D.age_data).join('rect').attr('class','bov')
     .attr('x',d=>x(d.age)).attr('y',0).attr('width',x.bandwidth()).attr('height',iH).attr('fill','transparent')
     .on('mouseover',(e,d)=>showTip(`<strong>${d.age}</strong>Rate: <b style="color:var(--red)">${d.rate}%</b><br>Patients: ${fmt(d.count)}<br>Readmitted: ${fmt(d.n)}`,e))
     .on('mousemove',moveTip).on('mouseout',hideTip);
-  const avg=11.2;
+  const avg=D.kpi.readmission_rate;
   g.append('line').attr('x1',0).attr('x2',iW).attr('y1',y(avg)).attr('y2',y(avg)).attr('stroke','#f9a825').attr('stroke-width',1.5).attr('stroke-dasharray','5,4');
-  g.append('text').attr('x',iW-4).attr('y',y(avg)-5).attr('text-anchor','end').attr('font-size',10).attr('fill','#f9a825').text('avg 11.2%');
+  g.append('text').attr('x',iW-4).attr('y',y(avg)-5).attr('text-anchor','end').attr('font-size',10).attr('fill','#f9a825').text(`avg ${avg}%`);
 }
 
 function drawDonut(){
@@ -644,7 +589,7 @@ function drawDonut(){
   const pie=d3.pie().value(d=>d.value).sort(null);
   const arc=d3.arc().innerRadius(iR).outerRadius(r).cornerRadius(3);
   const arcH=d3.arc().innerRadius(iR).outerRadius(r+6).cornerRadius(3);
-  g.selectAll('.arc').data(pie(DONUT_DATA)).join('g').attr('class','arc')
+  g.selectAll('.arc').data(pie(D.donut_data)).join('g').attr('class','arc')
     .append('path').attr('fill',d=>d.data.color).attr('opacity',0.88)
     .on('mouseover',function(e,d){ d3.select(this).transition().duration(120).attr('d',arcH); showTip(`<strong>${d.data.label}</strong>${fmt(d.data.value)} patients<br>${d.data.pct}%`,e); })
     .on('mousemove',moveTip).on('mouseout',function(e,d){ d3.select(this).transition().duration(120).attr('d',arc); hideTip(); })
@@ -652,23 +597,24 @@ function drawDonut(){
   g.append('text').attr('text-anchor','middle').attr('dy','-0.2em').attr('font-size',18).attr('font-weight',700).attr('fill','#e8eaf0').text('101K');
   g.append('text').attr('text-anchor','middle').attr('dy','1.2em').attr('font-size',9).attr('fill','#7b8091').text('encounters');
   const leg=d3.select('#donut-legend'); leg.selectAll('*').remove();
-  DONUT_DATA.forEach(d=>{ const it=leg.append('div').attr('class','legend-item'); it.append('div').attr('class','legend-dot').style('background',d.color); it.append('span').text(`${d.label} (${d.pct}%)`); });
+  D.donut_data.forEach(d=>{ const it=leg.append('div').attr('class','legend-item'); it.append('div').attr('class','legend-dot').style('background',d.color); it.append('span').text(`${d.label} (${d.pct}%)`); });
 }
 
 function drawAdmitBar(fa='all'){
-  const W=svgW('admit-bar-svg'), H=240, m={t:10,r:50,b:20,l:105};
+  const W=svgW('admit-bar-svg'), H=240, m={t:10,r:50,b:20,l:115};
   const iW=W-m.l-m.r, iH=H-m.t-m.b;
   const s=d3.select('#admit-bar-svg').attr('width',W).attr('height',H); s.selectAll('*').remove();
   const g=s.append('g').attr('transform',`translate(${m.l},${m.t})`);
-  const data=[...ADMIT_DATA].sort((a,b)=>b.rate-a.rate);
-  const x=d3.scaleLinear().domain([0,16]).range([0,iW]);
+  const data=[...D.admit_data].sort((a,b)=>b.rate-a.rate);
+  const x=d3.scaleLinear().domain([0,d3.max(data,d=>d.rate)*1.15]).range([0,iW]);
   const y=d3.scaleBand().domain(data.map(d=>d.type)).range([0,iH]).padding(0.35);
   g.append('g').attr('class','grid').call(d3.axisTop(x).ticks(5).tickSize(-iH).tickFormat(''));
   g.append('g').attr('class','axis').call(d3.axisLeft(y)).select('.domain').remove();
   g.append('g').attr('class','axis').attr('transform',`translate(0,${iH})`).call(d3.axisBottom(x).ticks(5).tickFormat(d=>d+'%'));
+  const avg=D.kpi.readmission_rate;
   g.selectAll('.bar').data(data).join('rect').attr('class','bar')
     .attr('x',0).attr('y',d=>y(d.type)).attr('height',y.bandwidth()).attr('width',0).attr('rx',4)
-    .attr('fill',d=>fa!=='all'&&d.type===fa?'#f9a825':d.rate>11.2?'#e74c6f':'#4fc3f7')
+    .attr('fill',d=>fa!=='all'&&d.type===fa?'#f9a825':d.rate>avg?'#e74c6f':'#4fc3f7')
     .attr('opacity',d=>fa!=='all'&&d.type!==fa?0.25:0.85)
     .transition().duration(800).ease(d3.easeCubicOut).attr('width',d=>x(d.rate));
   g.selectAll('.vlbl').data(data).join('text').attr('class','vlbl')
@@ -686,15 +632,15 @@ function drawGender(){
   const iW=W-m.l-m.r, iH=H-m.t-m.b;
   const s=d3.select('#gender-svg').attr('width',W).attr('height',H); s.selectAll('*').remove();
   const g=s.append('g').attr('transform',`translate(${m.l},${m.t})`);
-  const x0=d3.scaleBand().domain(GENDER_DATA.map(d=>d.gender)).range([0,iW]).padding(0.35);
-  const x1=d3.scaleBand().domain(['Count','Rate']).range([0,x0.bandwidth()]).padding(0.1);
-  const yL=d3.scaleLinear().domain([0,60000]).range([iH,0]);
-  const yR=d3.scaleLinear().domain([0,15]).range([iH,0]);
+  const data=D.gender_data;
+  const x0=d3.scaleBand().domain(data.map(d=>d.gender)).range([0,iW]).padding(0.35);
+  const yL=d3.scaleLinear().domain([0,d3.max(data,d=>d.count)*1.1]).range([iH,0]);
+  const yR=d3.scaleLinear().domain([0,d3.max(data,d=>d.rate)*1.3]).range([iH,0]);
   g.append('g').attr('class','grid').call(d3.axisLeft(yL).ticks(5).tickSize(-iW).tickFormat(''));
   g.append('g').attr('class','axis').attr('transform',`translate(0,${iH})`).call(d3.axisBottom(x0));
   g.append('g').attr('class','axis').call(d3.axisLeft(yL).ticks(5).tickFormat(d=>d3.format('.0s')(d)));
   g.append('g').attr('class','axis').attr('transform',`translate(${iW},0)`).call(d3.axisRight(yR).ticks(5).tickFormat(d=>d+'%'));
-  GENDER_DATA.forEach(d=>{
+  data.forEach(d=>{
     g.append('rect').attr('x',x0(d.gender)).attr('y',iH).attr('width',x0.bandwidth()*0.5-2).attr('height',0).attr('rx',4).attr('fill','#4fc3f7').attr('opacity',0.8)
      .transition().duration(800).attr('y',yL(d.count)).attr('height',iH-yL(d.count));
     g.append('rect').attr('x',x0(d.gender)+x0.bandwidth()*0.5+2).attr('y',iH).attr('width',x0.bandwidth()*0.5-2).attr('height',0).attr('rx',4).attr('fill','#e74c6f').attr('opacity',0.8)
@@ -703,7 +649,6 @@ function drawGender(){
      .on('mouseover',(e)=>showTip(`<strong>${d.gender}</strong>Count: ${fmt(d.count)}<br>Readmit rate: <b style="color:var(--red)">${d.rate}%</b>`,e))
      .on('mousemove',moveTip).on('mouseout',hideTip);
   });
-  // mini legend
   g.append('rect').attr('x',iW-100).attr('y',4).attr('width',10).attr('height',10).attr('fill','#4fc3f7').attr('rx',2);
   g.append('text').attr('x',iW-86).attr('y',13).attr('font-size',10).attr('fill','#7b8091').text('Count (left)');
   g.append('rect').attr('x',iW-100).attr('y',20).attr('width',10).attr('height',10).attr('fill','#e74c6f').attr('rx',2);
@@ -715,41 +660,50 @@ function drawInpatient(){
   const iW=W-m.l-m.r, iH=H-m.t-m.b;
   const s=d3.select('#inpatient-svg').attr('width',W).attr('height',H); s.selectAll('*').remove();
   const g=s.append('g').attr('transform',`translate(${m.l},${m.t})`);
-  const x=d3.scaleBand().domain(INPATIENT_DATA.map(d=>d.v)).range([0,iW]).padding(0.3);
-  const y=d3.scaleLinear().domain([0,40]).range([iH,0]);
-  const cs=d3.scaleSequential(d3.interpolateRgb('#4fc3f7','#e74c6f')).domain([8,35]);
+  const data=D.inpatient_data;
+  const x=d3.scaleBand().domain(data.map(d=>d.v)).range([0,iW]).padding(0.3);
+  const y=d3.scaleLinear().domain([0,d3.max(data,d=>d.rate)*1.2]).range([iH,0]);
+  const cs=d3.scaleSequential(d3.interpolateRgb('#4fc3f7','#e74c6f')).domain(d3.extent(data,d=>d.rate));
   g.append('g').attr('class','grid').call(d3.axisLeft(y).ticks(5).tickSize(-iW).tickFormat(''));
   g.append('g').attr('class','axis').attr('transform',`translate(0,${iH})`).call(d3.axisBottom(x));
   g.append('g').attr('class','axis').call(d3.axisLeft(y).ticks(5).tickFormat(d=>d+'%'));
-  g.selectAll('.bar').data(INPATIENT_DATA).join('rect').attr('class','bar')
+  g.selectAll('.bar').data(data).join('rect').attr('class','bar')
     .attr('x',d=>x(d.v)).attr('y',iH).attr('width',x.bandwidth()).attr('height',0).attr('rx',4).attr('fill',d=>cs(d.rate)).attr('opacity',0.88)
     .transition().duration(800).ease(d3.easeCubicOut).attr('y',d=>y(d.rate)).attr('height',d=>iH-y(d.rate));
-  g.selectAll('.bov').data(INPATIENT_DATA).join('rect').attr('class','bov')
+  g.selectAll('.bov').data(data).join('rect').attr('class','bov')
     .attr('x',d=>x(d.v)).attr('y',0).attr('width',x.bandwidth()).attr('height',iH).attr('fill','transparent')
-    .on('mouseover',(e,d)=>showTip(`<strong>${d.v} prior inpatient visit${d.v==='6+'?'s+':''}</strong>Rate: <b style="color:var(--red)">${d.rate}%</b><br>Patients: ${fmt(d.count)}`,e))
+    .on('mouseover',(e,d)=>showTip(`<strong>${d.v} prior inpatient</strong>Rate: <b style="color:var(--red)">${d.rate}%</b><br>Patients: ${fmt(d.count)}`,e))
     .on('mousemove',moveTip).on('mouseout',hideTip);
   s.append('text').attr('x',m.l+iW/2).attr('y',H-2).attr('text-anchor','middle').attr('font-size',10).attr('fill','#7b8091').text('Prior Inpatient Visits');
 }
 
 function updateKPIs(){
-  let rate=11.2, total='101,766';
-  if(t1Age!=='all'){ const d=AGE_DATA.find(r=>r.age===t1Age); if(d){rate=d.rate; total=fmt(d.count);} }
-  if(t1Admit!=='all'){ const d=ADMIT_DATA.find(r=>r.type===t1Admit); if(d){rate=d.rate; total=fmt(d.count);} }
+  let rate=D.kpi.readmission_rate, total=fmt(D.kpi.total_encounters);
+  if(t1Age!=='all'){ const d=D.age_data.find(r=>r.age===t1Age); if(d){rate=d.rate; total=fmt(d.count);} }
+  if(t1Admit!=='all'){ const d=D.admit_data.find(r=>r.type===t1Admit); if(d){rate=d.rate; total=fmt(d.count);} }
   document.getElementById('k-rate').textContent=rate+'%';
   document.getElementById('k-total').textContent=total;
   document.getElementById('gauge-pct').textContent=rate+'%';
   drawGauge(rate);
 }
 
-document.getElementById('t1-age').addEventListener('change',function(){ t1Age=this.value; updateKPIs(); drawAgeBar(t1Age); drawAdmitBar(t1Admit); });
-document.getElementById('t1-admit').addEventListener('change',function(){ t1Admit=this.value; updateKPIs(); drawAgeBar(t1Age); drawAdmitBar(t1Admit); });
-document.getElementById('t1-reset').addEventListener('click',()=>{ t1Age='all'; t1Admit='all'; document.getElementById('t1-age').value='all'; document.getElementById('t1-admit').value='all'; updateKPIs(); drawAgeBar(); drawAdmitBar(); });
+function setupFilterListeners(){
+  document.getElementById('t1-age').addEventListener('change',function(){ t1Age=this.value; updateKPIs(); drawAgeBar(t1Age); drawAdmitBar(t1Admit); });
+  document.getElementById('t1-admit').addEventListener('change',function(){ t1Admit=this.value; updateKPIs(); drawAgeBar(t1Age); drawAdmitBar(t1Admit); });
+  document.getElementById('t1-reset').addEventListener('click',()=>{ t1Age='all'; t1Admit='all'; document.getElementById('t1-age').value='all'; document.getElementById('t1-admit').value='all'; updateKPIs(); drawAgeBar(); drawAdmitBar(); });
+  document.getElementById('t2-method').addEventListener('change',function(){ drawFeatImp(this.value,+document.getElementById('t2-topn').value); });
+  document.getElementById('t2-topn').addEventListener('change',function(){ drawFeatImp(document.getElementById('t2-method').value,+this.value); });
+  document.getElementById('t2-reset').addEventListener('click',()=>{ document.getElementById('t2-method').value='mi'; document.getElementById('t2-topn').value='15'; drawFeatImp('mi',15); });
+  document.getElementById('dist-feat').addEventListener('change',function(){ drawHist(this.value); });
+  document.getElementById('t3-view').addEventListener('change', renderT3);
+  document.getElementById('shap-feat').addEventListener('change',function(){ drawSHAPDep(this.value); });
+}
 
 // ══════════════════════════════════════════
 // TAB 2 CHARTS
 // ══════════════════════════════════════════
 function drawFeatImp(method='mi', topn=15){
-  const data=FEAT_IMP[method].slice(0,topn);
+  const data=D.feat_imp[method].slice(0,topn);
   document.getElementById('t2-chart-title').textContent='Feature Importance — '+{mi:'Mutual Information',corr:'Pearson Correlation',rf:'Random Forest'}[method];
   const W=svgW('feat-imp-svg'), H=Math.max(220, data.length*28+40), m={t:10,r:80,b:20,l:160};
   const iW=W-m.l-m.r, iH=H-m.t-m.b;
@@ -759,26 +713,27 @@ function drawFeatImp(method='mi', topn=15){
   const y=d3.scaleBand().domain(data.map(d=>d.f)).range([0,iH]).padding(0.3);
   g.append('g').attr('class','grid').call(d3.axisTop(x).ticks(5).tickSize(-iH).tickFormat(''));
   g.append('g').attr('class','axis').call(d3.axisLeft(y)).select('.domain').remove();
-  const cs=d3.scaleSequential(d3.interpolateRgb('#4fc3f7','#e74c6f')).domain([data[data.length-1].v, data[0].v]);
+  const cs=d3.scaleSequential(d3.interpolateRgb('#4fc3f7','#e74c6f')).domain([data[data.length-1].v,data[0].v]);
   g.selectAll('.bar').data(data).join('rect').attr('class','bar')
     .attr('x',0).attr('y',d=>y(d.f)).attr('height',y.bandwidth()).attr('width',0).attr('rx',4)
     .attr('fill',d=>cs(d.v)).attr('opacity',0.88)
     .transition().duration(800).ease(d3.easeCubicOut).attr('width',d=>x(d.v));
   g.selectAll('.vlbl').data(data).join('text').attr('class','vlbl')
     .attr('x',d=>x(d.v)+5).attr('y',d=>y(d.f)+y.bandwidth()/2+4)
-    .attr('font-size',10).attr('fill','#e8eaf0').attr('opacity',0).text(d=>d.v.toFixed(3))
+    .attr('font-size',10).attr('fill','#e8eaf0').attr('opacity',0).text(d=>d.v.toFixed(4))
     .transition().delay(650).duration(300).attr('opacity',1);
   g.selectAll('.bov').data(data).join('rect').attr('class','bov')
     .attr('x',0).attr('y',d=>y(d.f)).attr('height',y.bandwidth()).attr('width',iW).attr('fill','transparent')
-    .on('mouseover',(e,d)=>showTip(`<strong>${d.f}</strong>Score: <b style="color:var(--blue)">${d.v.toFixed(4)}</b>`,e))
+    .on('mouseover',(e,d)=>showTip(`<strong>${d.f}</strong>Score: <b style="color:var(--blue)">${d.v.toFixed(5)}</b>`,e))
     .on('mousemove',moveTip).on('mouseout',hideTip);
 }
 
 function drawScatter(){
   function rng(a,b){return Math.random()*(b-a)+a;}
+  const rate=D.kpi.readmission_rate/100;
   const pts=[];
   for(let i=0;i<600;i++){
-    const r=Math.random()<0.112;
+    const r=Math.random()<rate;
     pts.push({stay:Math.max(1,Math.round(rng(r?3:1,r?12:9))), meds:Math.max(1,Math.round(rng(r?12:5,r?25:22))), readmit:r});
   }
   const W=svgW('scatter-svg'), H=280, m={t:10,r:20,b:45,l:50};
@@ -806,12 +761,12 @@ function drawScatter(){
 }
 
 function drawEngFeat(){
-  const W=svgW('eng-feat-svg'), H=220, m={t:10,r:80,b:20,l:155};
+  const data=D.eng_feat;
+  const W=svgW('eng-feat-svg'), H=Math.max(200, data.length*24+40), m={t:10,r:80,b:20,l:155};
   const iW=W-m.l-m.r, iH=H-m.t-m.b;
   const s=d3.select('#eng-feat-svg').attr('width',W).attr('height',H); s.selectAll('*').remove();
   const g=s.append('g').attr('transform',`translate(${m.l},${m.t})`);
-  const data=ENG_FEAT;
-  const x=d3.scaleLinear().domain([0,0.13]).range([0,iW]);
+  const x=d3.scaleLinear().domain([0,d3.max(data,d=>d.v)*1.2]).range([0,iW]);
   const y=d3.scaleBand().domain(data.map(d=>d.f)).range([0,iH]).padding(0.3);
   g.append('g').attr('class','axis').call(d3.axisLeft(y)).select('.domain').remove();
   g.append('g').attr('class','axis').attr('transform',`translate(0,${iH})`).call(d3.axisBottom(x).ticks(5).tickFormat(d=>d.toFixed(2)));
@@ -820,12 +775,13 @@ function drawEngFeat(){
     .transition().duration(800).attr('width',d=>x(d.v));
   g.selectAll('.bov').data(data).join('rect').attr('class','bov')
     .attr('x',0).attr('y',d=>y(d.f)).attr('height',y.bandwidth()).attr('width',iW).attr('fill','transparent')
-    .on('mouseover',(e,d)=>showTip(`<strong>${d.f}</strong>Correlation: <b style="color:var(--purple)">${d.v.toFixed(3)}</b>`,e))
+    .on('mouseover',(e,d)=>showTip(`<strong>${d.f}</strong>Correlation: <b style="color:var(--purple)">${d.v.toFixed(4)}</b>`,e))
     .on('mousemove',moveTip).on('mouseout',hideTip);
 }
 
 function drawHist(feat='time_in_hospital'){
-  const d=HIST_DATA[feat];
+  const d=D.hist_data[feat];
+  if(!d) return;
   const W=svgW('hist-svg'), H=200, m={t:10,r:20,b:40,l:45};
   const iW=W-m.l-m.r, iH=H-m.t-m.b;
   const s=d3.select('#hist-svg').attr('width',W).attr('height',H); s.selectAll('*').remove();
@@ -838,39 +794,25 @@ function drawHist(feat='time_in_hospital'){
   g.selectAll('.bar').data(d.bins).join('rect').attr('class','bar')
     .attr('x',(_,i)=>x(String(d.bins[i]))).attr('y',iH).attr('width',x.bandwidth()).attr('height',0).attr('rx',3).attr('fill','#4fc3f7').attr('opacity',0.8)
     .transition().duration(700).attr('y',(_,i)=>y(d.counts[i])).attr('height',(_,i)=>iH-y(d.counts[i]));
-  const mx=d3.max(d.counts), med=d.median;
-  const medX=x(String(med))+(x.bandwidth()/2);
-  g.append('line').attr('x1',medX).attr('x2',medX).attr('y1',0).attr('y2',iH).attr('stroke','#f9a825').attr('stroke-width',1.5).attr('stroke-dasharray','5,4');
-  g.append('text').attr('x',medX+4).attr('y',14).attr('font-size',9).attr('fill','#f9a825').text('med='+med);
+  const medX=x(String(d.bins.reduce((prev,cur)=>Math.abs(cur-d.median)<Math.abs(prev-d.median)?cur:prev,d.bins[0])));
+  if(medX!==undefined){
+    const mx2=(medX||0)+(x.bandwidth()/2);
+    g.append('line').attr('x1',mx2).attr('x2',mx2).attr('y1',0).attr('y2',iH).attr('stroke','#f9a825').attr('stroke-width',1.5).attr('stroke-dasharray','5,4');
+    g.append('text').attr('x',mx2+4).attr('y',14).attr('font-size',9).attr('fill','#f9a825').text('med='+d.median);
+  }
 }
-
-document.getElementById('t2-method').addEventListener('change',function(){ drawFeatImp(this.value, +document.getElementById('t2-topn').value); });
-document.getElementById('t2-topn').addEventListener('change',function(){ drawFeatImp(document.getElementById('t2-method').value, +this.value); });
-document.getElementById('t2-reset').addEventListener('click',()=>{ document.getElementById('t2-method').value='mi'; document.getElementById('t2-topn').value='15'; drawFeatImp('mi',15); });
-document.getElementById('dist-feat').addEventListener('change',function(){ drawHist(this.value); });
 
 // ══════════════════════════════════════════
 // TAB 3 CHARTS
 // ══════════════════════════════════════════
-let selectedModels=new Set(['lr','rf','xgb']);
-document.querySelectorAll('.model-card').forEach(card=>{
-  card.addEventListener('click',function(){
-    const m=this.dataset.model;
-    if(selectedModels.has(m)){ if(selectedModels.size>1){selectedModels.delete(m);this.classList.remove('selected');} }
-    else{ selectedModels.add(m); this.classList.add('selected'); }
-    renderT3();
-  });
-});
-document.getElementById('t3-view').addEventListener('change', renderT3);
-
 function renderT3(){
   const view=document.getElementById('t3-view').value;
   const titles={roc:'ROC Curves — Model Comparison',pr:'Precision-Recall Curves',cm:'Confusion Matrices',radar:'Metrics Radar Chart',fi:'Feature Importance — RF vs XGBoost'};
   const subs={roc:'Higher AUC = better discrimination · hover for values',pr:'Higher area = better performance on imbalanced data',cm:'Click a model card above to toggle visibility',radar:'Multi-metric model comparison',fi:'Top 10 features ranked by importance'};
   document.getElementById('t3-title').textContent=titles[view];
   document.getElementById('t3-sub').textContent=subs[view];
-  const s=d3.select('#t3-main-svg'); s.selectAll('*').remove();
-  const leg=d3.select('#t3-legend'); leg.selectAll('*').remove();
+  d3.select('#t3-main-svg').selectAll('*').remove();
+  d3.select('#t3-legend').selectAll('*').remove();
   const mNames={'lr':'Logistic Regression','rf':'Random Forest','xgb':'XGBoost'};
   const ms=[...selectedModels];
   if(view==='roc') drawROC(ms);
@@ -878,7 +820,8 @@ function renderT3(){
   else if(view==='cm') drawCM(ms);
   else if(view==='radar') drawRadar(ms);
   else if(view==='fi') drawFI();
-  ms.forEach(m=>{ const it=leg.append('div').attr('class','legend-item'); it.append('div').attr('class','legend-dot').style('background',ROC[m].color); it.append('span').text(mNames[m]); });
+  const leg=d3.select('#t3-legend');
+  ms.forEach(m=>{ const it=leg.append('div').attr('class','legend-item'); it.append('div').attr('class','legend-dot').style('background',D.roc[m].color); it.append('span').text(mNames[m]); });
 }
 
 function drawROC(ms){
@@ -892,7 +835,7 @@ function drawROC(ms){
   g.append('g').attr('class','axis').attr('transform',`translate(0,${iH})`).call(d3.axisBottom(x).ticks(5).tickFormat(d=>d3.format('.0%')(d)));
   g.append('g').attr('class','axis').call(d3.axisLeft(y).ticks(5).tickFormat(d=>d3.format('.0%')(d)));
   g.append('line').attr('x1',0).attr('x2',iW).attr('y1',iH).attr('y2',0).attr('stroke','#2e3450').attr('stroke-dasharray','5,4').attr('stroke-width',1.5);
-  ms.forEach(m=>{ const d=ROC[m]; const line=d3.line().x(pt=>x(pt[0])).y(pt=>y(pt[1])).curve(d3.curveMonotoneX); g.append('path').datum(d.pts).attr('fill','none').attr('stroke',d.color).attr('stroke-width',2.5).attr('d',line).attr('stroke-dasharray',function(){ const l=this.getTotalLength(); return l+' '+l; }).attr('stroke-dashoffset',function(){ return this.getTotalLength(); }).transition().duration(1000).attr('stroke-dashoffset',0); g.append('text').attr('x',x(d.pts[d.pts.length-2][0])+5).attr('y',y(d.pts[d.pts.length-2][1])-5).attr('font-size',10).attr('fill',d.color).text(`AUC=${d.auc}`); });
+  ms.forEach(mk=>{ const d=D.roc[mk]; const line=d3.line().x(pt=>x(pt[0])).y(pt=>y(pt[1])).curve(d3.curveMonotoneX); g.append('path').datum(d.pts).attr('fill','none').attr('stroke',d.color).attr('stroke-width',2.5).attr('d',line).attr('stroke-dasharray',function(){ const l=this.getTotalLength(); return l+' '+l; }).attr('stroke-dashoffset',function(){ return this.getTotalLength(); }).transition().duration(1000).attr('stroke-dashoffset',0); g.append('text').attr('x',x(d.pts[d.pts.length-3][0])+5).attr('y',y(d.pts[d.pts.length-3][1])-5).attr('font-size',10).attr('fill',d.color).text(`AUC=${d.auc}`); });
   s.append('text').attr('x',m.l+iW/2).attr('y',H-5).attr('text-anchor','middle').attr('font-size',11).attr('fill','#7b8091').text('False Positive Rate');
   s.append('text').attr('transform','rotate(-90)').attr('x',-(m.t+iH/2)).attr('y',14).attr('text-anchor','middle').attr('font-size',11).attr('fill','#7b8091').text('True Positive Rate');
 }
@@ -907,9 +850,10 @@ function drawPR(ms){
   g.append('g').attr('class','grid').call(d3.axisLeft(y).ticks(5).tickSize(-iW).tickFormat(''));
   g.append('g').attr('class','axis').attr('transform',`translate(0,${iH})`).call(d3.axisBottom(x).ticks(5).tickFormat(d=>d3.format('.0%')(d)));
   g.append('g').attr('class','axis').call(d3.axisLeft(y).ticks(5).tickFormat(d=>d3.format('.0%')(d)));
-  g.append('line').attr('x1',0).attr('x2',iW).attr('y1',y(0.112)).attr('y2',y(0.112)).attr('stroke','#2e3450').attr('stroke-dasharray','5,4').attr('stroke-width',1.5);
-  g.append('text').attr('x',5).attr('y',y(0.112)-5).attr('font-size',9).attr('fill','#7b8091').text('Baseline 11.2%');
-  ms.forEach(m=>{ const d=PR[m]; const line=d3.line().x(pt=>x(pt[0])).y(pt=>y(pt[1])).curve(d3.curveMonotoneX); g.append('path').datum(d.pts).attr('fill','none').attr('stroke',d.color).attr('stroke-width',2.5).attr('d',line).attr('stroke-dasharray',function(){ const l=this.getTotalLength(); return l+' '+l; }).attr('stroke-dashoffset',function(){ return this.getTotalLength(); }).transition().duration(1000).attr('stroke-dashoffset',0); g.append('text').attr('x',x(d.pts[3][0])+5).attr('y',y(d.pts[3][1])-5).attr('font-size',10).attr('fill',d.color).text(`AP=${d.ap}`); });
+  const baseline=D.kpi.readmission_rate/100;
+  g.append('line').attr('x1',0).attr('x2',iW).attr('y1',y(baseline)).attr('y2',y(baseline)).attr('stroke','#2e3450').attr('stroke-dasharray','5,4').attr('stroke-width',1.5);
+  g.append('text').attr('x',5).attr('y',y(baseline)-5).attr('font-size',9).attr('fill','#7b8091').text(`Baseline ${D.kpi.readmission_rate}%`);
+  ms.forEach(mk=>{ const d=D.pr[mk]; const line=d3.line().x(pt=>x(pt[0])).y(pt=>y(pt[1])).curve(d3.curveMonotoneX); g.append('path').datum(d.pts).attr('fill','none').attr('stroke',d.color).attr('stroke-width',2.5).attr('d',line).attr('stroke-dasharray',function(){ const l=this.getTotalLength(); return l+' '+l; }).attr('stroke-dashoffset',function(){ return this.getTotalLength(); }).transition().duration(1000).attr('stroke-dashoffset',0); g.append('text').attr('x',x(d.pts[3][0])+5).attr('y',y(d.pts[3][1])-5).attr('font-size',10).attr('fill',d.color).text(`AP=${d.ap}`); });
   s.append('text').attr('x',m.l+iW/2).attr('y',H-5).attr('text-anchor','middle').attr('font-size',11).attr('fill','#7b8091').text('Recall');
   s.append('text').attr('transform','rotate(-90)').attr('x',-(m.t+iH/2)).attr('y',14).attr('text-anchor','middle').attr('font-size',11).attr('fill','#7b8091').text('Precision');
 }
@@ -917,17 +861,17 @@ function drawPR(ms){
 function drawCM(ms){
   const n=ms.length, W=svgW('t3-main-svg'), H=300;
   const s=d3.select('#t3-main-svg').attr('width',W).attr('height',H);
-  const cellW=Math.min(W/n-40, 220), cx=(W/n-cellW)/2;
+  const cellW=Math.min(W/n-40,220), cx=(W/n-cellW)/2;
   const labels=['Not Readmit','Readmit'];
-  ms.forEach((m,idx)=>{
-    const d=CM[m], cdata=[[d.tn,d.fp],[d.fn,d.tp]];
+  ms.forEach((mk,idx)=>{
+    const d=D.cm[mk], cdata=[[d.tn,d.fp],[d.fn,d.tp]];
     const ox=idx*(W/n)+cx+20, oy=40;
-    const cs=Math.min(cellW/2, 80);
+    const cs=Math.min(cellW/2,80);
     const colorScale=d3.scaleSequential(d3.interpolateBlues).domain([0,d.tn]);
     s.append('text').attr('x',ox+cs).attr('y',25).attr('text-anchor','middle').attr('font-size',12).attr('font-weight',600).attr('fill','#e8eaf0').text(d.name);
     cdata.forEach((row,ri)=>row.forEach((val,ci)=>{
       s.append('rect').attr('x',ox+ci*cs).attr('y',oy+ri*cs).attr('width',cs-3).attr('height',cs-3).attr('rx',4).attr('fill',colorScale(val)).attr('opacity',0.85).attr('stroke','var(--border)').attr('stroke-width',1);
-      s.append('text').attr('x',ox+ci*cs+cs/2-2).attr('y',oy+ri*cs+cs/2+4).attr('text-anchor','middle').attr('font-size',11).attr('font-weight',600).attr('fill', val>d.tn/4?'#0f1117':'#e8eaf0').text(d3.format('.2s')(val));
+      s.append('text').attr('x',ox+ci*cs+cs/2-2).attr('y',oy+ri*cs+cs/2+4).attr('text-anchor','middle').attr('font-size',11).attr('font-weight',600).attr('fill',val>d.tn/4?'#0f1117':'#e8eaf0').text(d3.format('.2s')(val));
     }));
     labels.forEach((l,i)=>{
       s.append('text').attr('x',ox-4).attr('y',oy+i*cs+cs/2+4).attr('text-anchor','end').attr('font-size',9).attr('fill','#7b8091').text(l);
@@ -937,25 +881,22 @@ function drawCM(ms){
 }
 
 function drawRadar(ms){
+  const RADAR_METRICS=['Accuracy','Precision','Recall','F1-Score','ROC-AUC'];
   const W=Math.min(svgW('t3-main-svg'),420), H=320, cx=W/2, cy=H/2, r=Math.min(W,H)/2-50;
   const s=d3.select('#t3-main-svg').attr('width',W).attr('height',H);
   const n=RADAR_METRICS.length, angleSlice=Math.PI*2/n;
-  // grid circles
   [0.2,0.4,0.6,0.8,1].forEach(v=>{
-    const pts=RADAR_METRICS.map((_,i)=>{ const a=angleSlice*i-Math.PI/2; return [cx+r*v*Math.cos(a), cy+r*v*Math.sin(a)]; });
+    const pts=RADAR_METRICS.map((_,i)=>{ const a=angleSlice*i-Math.PI/2; return [cx+r*v*Math.cos(a),cy+r*v*Math.sin(a)]; });
     s.append('polygon').attr('points',pts.map(p=>p.join(',')).join(' ')).attr('fill','none').attr('stroke','var(--border)').attr('stroke-width',1);
   });
-  // axes
-  RADAR_METRICS.forEach((m,i)=>{
+  RADAR_METRICS.forEach((metric,i)=>{
     const a=angleSlice*i-Math.PI/2;
     s.append('line').attr('x1',cx).attr('y1',cy).attr('x2',cx+r*Math.cos(a)).attr('y2',cy+r*Math.sin(a)).attr('stroke','var(--border)').attr('stroke-width',1);
-    const lx=cx+(r+20)*Math.cos(a), ly=cy+(r+20)*Math.sin(a);
-    s.append('text').attr('x',lx).attr('y',ly).attr('text-anchor','middle').attr('dominant-baseline','middle').attr('font-size',10).attr('fill','#7b8091').text(m);
+    s.append('text').attr('x',cx+(r+20)*Math.cos(a)).attr('y',cy+(r+20)*Math.sin(a)).attr('text-anchor','middle').attr('dominant-baseline','middle').attr('font-size',10).attr('fill','#7b8091').text(metric);
   });
-  // data
-  ms.forEach(m=>{
-    const d=RADAR[m];
-    const pts=d.vals.map((v,i)=>{ const a=angleSlice*i-Math.PI/2; return [cx+r*v*Math.cos(a), cy+r*v*Math.sin(a)]; });
+  ms.forEach(mk=>{
+    const d=D.radar[mk];
+    const pts=d.vals.map((v,i)=>{ const a=angleSlice*i-Math.PI/2; return [cx+r*v*Math.cos(a),cy+r*v*Math.sin(a)]; });
     s.append('polygon').attr('points',pts.map(p=>p.join(',')).join(' ')).attr('fill',d.color).attr('fill-opacity',0.15).attr('stroke',d.color).attr('stroke-width',2);
     pts.forEach(([px,py])=>{ s.append('circle').attr('cx',px).attr('cy',py).attr('r',4).attr('fill',d.color); });
   });
@@ -965,8 +906,8 @@ function drawFI(){
   const W=svgW('t3-main-svg'), H=300, m={t:20,r:20,b:20,l:155};
   const iW=(W-m.l-m.r)/2-10, iH=H-m.t-m.b;
   const s=d3.select('#t3-main-svg').attr('width',W).attr('height',H);
-  [[FI_RF,'#f9a825','Random Forest (RF)',0],[FI_XGB,'#e74c6f','XGBoost',1]].forEach(([data,col,title,idx])=>{
-    const ox=m.l+idx*(iW+20+m.l-m.l), oy=m.t;
+  [[D.fi_rf,'#f9a825','Random Forest (RF)',0],[D.fi_xgb,'#e74c6f','XGBoost',1]].forEach(([data,col,title,idx])=>{
+    const ox=m.l+idx*(iW+m.l), oy=m.t;
     const x=d3.scaleLinear().domain([0,data[0].v*1.15]).range([0,iW]);
     const y=d3.scaleBand().domain(data.map(d=>d.f)).range([0,iH]).padding(0.3);
     const g=s.append('g').attr('transform',`translate(${ox},${oy})`);
@@ -986,16 +927,16 @@ function drawFI(){
 // TAB 4 CHARTS
 // ══════════════════════════════════════════
 function drawSHAPBar(){
-  const W=svgW('shap-bar-svg'), H=280, m={t:10,r:80,b:20,l:155};
+  const data=[...D.shap_global].sort((a,b)=>a.v-b.v);
+  const W=svgW('shap-bar-svg'), H=Math.max(250,data.length*22+40), m={t:10,r:80,b:20,l:155};
   const iW=W-m.l-m.r, iH=H-m.t-m.b;
   const s=d3.select('#shap-bar-svg').attr('width',W).attr('height',H); s.selectAll('*').remove();
   const g=s.append('g').attr('transform',`translate(${m.l},${m.t})`);
-  const data=[...SHAP_GLOBAL].sort((a,b)=>a.v-b.v);
-  const x=d3.scaleLinear().domain([0,0.16]).range([0,iW]);
+  const x=d3.scaleLinear().domain([0,d3.max(data,d=>d.v)*1.2]).range([0,iW]);
   const y=d3.scaleBand().domain(data.map(d=>d.f)).range([0,iH]).padding(0.3);
   g.append('g').attr('class','axis').call(d3.axisLeft(y)).select('.domain').remove();
   g.append('g').attr('class','axis').attr('transform',`translate(0,${iH})`).call(d3.axisBottom(x).ticks(4).tickFormat(d=>d.toFixed(2)));
-  const cs=d3.scaleSequential(d3.interpolateRgb('#4fc3f7','#e74c6f')).domain([0,0.15]);
+  const cs=d3.scaleSequential(d3.interpolateRgb('#4fc3f7','#e74c6f')).domain(d3.extent(data,d=>d.v));
   g.selectAll('.bar').data(data).join('rect').attr('class','bar')
     .attr('x',0).attr('y',d=>y(d.f)).attr('height',y.bandwidth()).attr('width',0).attr('rx',4).attr('fill',d=>cs(d.v)).attr('opacity',0.88)
     .transition().duration(800).attr('width',d=>x(d.v));
@@ -1009,13 +950,11 @@ function drawSHAPBar(){
     .on('mousemove',moveTip).on('mouseout',hideTip);
 }
 
-function drawSHAPDep(feat='severity_score'){
-  const cfg=SHAP_DEP[feat];
-  const pts=Array.from({length:400},()=>{
-    const xv=cfg.xRange[0]+Math.random()*(cfg.xRange[1]-cfg.xRange[0]);
-    const sv=cfg.slope*(xv-cfg.mean)+(Math.random()-0.5)*cfg.noise;
-    return {x:xv,y:sv};
-  });
+function drawSHAPDep(feat){
+  if(!feat) feat=document.getElementById('shap-feat').value;
+  const depData=D.shap_dep[feat];
+  if(!depData) return;
+  const pts=depData.x.map((xv,i)=>({x:xv,y:depData.y[i]}));
   const W=svgW('shap-dep-svg'), H=240, m={t:10,r:20,b:45,l:55};
   const iW=W-m.l-m.r, iH=H-m.t-m.b;
   const s=d3.select('#shap-dep-svg').attr('width',W).attr('height',H); s.selectAll('*').remove();
@@ -1030,18 +969,17 @@ function drawSHAPDep(feat='severity_score'){
   g.append('line').attr('x1',0).attr('x2',iW).attr('y1',y(0)).attr('y2',y(0)).attr('stroke','#7b8091').attr('stroke-width',1).attr('stroke-dasharray','4,3');
   g.selectAll('circle').data(pts).join('circle')
     .attr('cx',d=>x(d.x)).attr('cy',d=>y(d.y)).attr('r',3).attr('fill',d=>cs(d.y)).attr('opacity',0.65)
-    .on('mouseover',(e,d)=>showTip(`${feat}: ${d.x.toFixed(1)}<br>SHAP: ${d.y.toFixed(3)}`,e))
+    .on('mouseover',(e,d)=>showTip(`${feat}: ${d.x.toFixed(2)}<br>SHAP: ${d.y.toFixed(4)}`,e))
     .on('mousemove',moveTip).on('mouseout',hideTip);
   s.append('text').attr('x',m.l+iW/2).attr('y',H-4).attr('text-anchor','middle').attr('font-size',11).attr('fill','#7b8091').text(feat);
   s.append('text').attr('transform','rotate(-90)').attr('x',-(m.t+iH/2)).attr('y',14).attr('text-anchor','middle').attr('font-size',11).attr('fill','#7b8091').text('SHAP value');
 }
 
-document.getElementById('shap-feat').addEventListener('change',function(){ drawSHAPDep(this.value); });
-
-// Predictor sliders
-(function buildSliders(){
+// ── Predictor sliders ──
+function buildSliders(){
   const grid=document.getElementById('slider-grid');
-  PRED_CONFIG.forEach(c=>{
+  grid.innerHTML='';
+  D.pred_config.forEach(c=>{
     const row=document.createElement('div'); row.className='slider-row';
     const lbl=document.createElement('label');
     lbl.innerHTML=`${c.label} <span id="sv-${c.id}">${c.median}</span>`;
@@ -1050,28 +988,32 @@ document.getElementById('shap-feat').addEventListener('change',function(){ drawS
     inp.addEventListener('input',()=>{ document.getElementById('sv-'+c.id).textContent=inp.value; });
     row.appendChild(lbl); row.appendChild(inp); grid.appendChild(row);
   });
-})();
+}
 
 document.getElementById('pred-reset').addEventListener('click',()=>{
-  PRED_CONFIG.forEach(c=>{ document.getElementById('sl-'+c.id).value=c.median; document.getElementById('sv-'+c.id).textContent=c.median; });
+  if(!D) return;
+  D.pred_config.forEach(c=>{ document.getElementById('sl-'+c.id).value=c.median; document.getElementById('sv-'+c.id).textContent=c.median; });
 });
 
 document.getElementById('predict-btn').addEventListener('click',()=>{
+  if(!D) return;
   const vals={};
-  PRED_CONFIG.forEach(c=>{ vals[c.id]=+document.getElementById('sl-'+c.id).value; });
+  D.pred_config.forEach(c=>{ vals[c.id]=+document.getElementById('sl-'+c.id).value; });
 
-  // Simple logistic-regression-like scoring from feature weights
-  const w={time_in_hospital:0.028,num_medications:0.012,num_lab_procedures:0.003,number_inpatient:0.042,number_emergency:0.038,age_num:0.002,num_procedures:0.008,number_outpatient:0.015};
-  const med={time_in_hospital:4,num_medications:15,num_lab_procedures:44,number_inpatient:0,number_emergency:0,age_num:65,num_procedures:1,number_outpatient:0};
-  let logit=-2.1;
-  Object.keys(w).forEach(k=>{ logit+=w[k]*(vals[k]-med[k]); });
+  // Score using actual LR weights from notebook
+  let logit=D.lr_intercept||0;
+  Object.keys(D.pred_weights).forEach(k=>{
+    if(vals[k]!==undefined && D.pred_medians[k]!==undefined){
+      logit+=D.pred_weights[k]*(vals[k]-D.pred_medians[k]);
+    }
+  });
   const lrP=1/(1+Math.exp(-logit));
   const rfP=Math.min(0.95,lrP*1.08+(Math.random()*0.04-0.02));
   const xgbP=Math.min(0.95,lrP*1.12+(Math.random()*0.04-0.02));
   const ens=(lrP+rfP+xgbP)/3;
 
-  const riskLabel = ens>0.2?'🔴 HIGH RISK': ens>0.1?'🟡 MODERATE RISK':'🟢 LOW RISK';
-  const riskColor = ens>0.2?'#e74c6f': ens>0.1?'#f9a825':'#4caf7d';
+  const riskLabel=ens>0.2?'🔴 HIGH RISK':ens>0.1?'🟡 MODERATE RISK':'🟢 LOW RISK';
+  const riskColor=ens>0.2?'#e74c6f':ens>0.1?'#f9a825':'#4caf7d';
 
   document.getElementById('risk-label').textContent=riskLabel;
   document.getElementById('risk-label').style.color=riskColor;
@@ -1094,22 +1036,22 @@ document.getElementById('predict-btn').addEventListener('click',()=>{
     gs.append('text').attr('x',gcx+(gr+18)*Math.sin(a)).attr('y',gcy-(gr+18)*Math.cos(a)+4).attr('text-anchor','middle').attr('font-size',9).attr('fill','#7b8091').text(lbl);
   });
 
-  // Model breakdown
   const bars=document.getElementById('risk-bars'); bars.innerHTML='';
   [['Logistic Regression',lrP,'#4fc3f7'],['Random Forest',rfP,'#f9a825'],['XGBoost',xgbP,'#e74c6f']].forEach(([name,p,col])=>{
     bars.innerHTML+=`<div class="risk-model"><div class="name">${name}</div><div class="pct" style="color:${col}">${(p*100).toFixed(1)}%</div></div>`;
   });
 
-  // SHAP waterfall
+  // SHAP waterfall using actual weights
   const wf=document.getElementById('shap-waterfall');
-  const featVals=PRED_CONFIG.map(c=>({f:c.label,v:w[c.id]*(vals[c.id]-med[c.id])||0})).sort((a,b)=>Math.abs(b.v)-Math.abs(a.v)).slice(0,6);
+  const featVals=D.pred_config.map(c=>({
+    f:c.label, id:c.id, v:(D.pred_weights[c.id]||0)*(vals[c.id]-(D.pred_medians[c.id]||0))
+  })).sort((a,b)=>Math.abs(b.v)-Math.abs(a.v)).slice(0,6);
   wf.innerHTML=`<table class="shap-table"><thead><tr><th>Feature</th><th>Value</th><th>Impact</th><th></th></tr></thead><tbody>`+
     featVals.map(f=>{
       const pct=Math.min(Math.abs(f.v)*300,100);
       const bar=f.v>0?`<span class="shap-bar-pos" style="width:${pct}px"></span>`:`<span class="shap-bar-neg" style="width:${pct}px"></span>`;
       const col=f.v>0?'#e74c6f':'#4fc3f7';
-      const vv=PRED_CONFIG.find(c=>c.label===f.f);
-      return `<tr><td>${f.f}</td><td>${vv?vals[vv.id]:''}</td><td style="color:${col};font-weight:600">${f.v>0?'+':''}${f.v.toFixed(4)}</td><td>${bar}</td></tr>`;
+      return `<tr><td>${f.f}</td><td>${vals[f.id]}</td><td style="color:${col};font-weight:600">${f.v>0?'+':''}${f.v.toFixed(4)}</td><td>${bar}</td></tr>`;
     }).join('')+'</tbody></table>';
 
   document.getElementById('risk-result').classList.add('show');
@@ -1118,45 +1060,43 @@ document.getElementById('predict-btn').addEventListener('click',()=>{
 // ══════════════════════════════════════════
 // TAB SWITCHING
 // ══════════════════════════════════════════
-const tabBtns=document.querySelectorAll('.tab-btn');
-const tabPanels=document.querySelectorAll('.tab-panel');
-let drawnTabs=new Set(['tab1']);
+let drawnTabs = new Set(['tab1']);
 
-tabBtns.forEach(btn=>{
-  btn.addEventListener('click',()=>{
-    tabBtns.forEach(b=>b.classList.remove('active'));
-    tabPanels.forEach(p=>p.classList.remove('active'));
-    btn.classList.add('active');
-    const tid=btn.dataset.tab;
-    document.getElementById(tid).classList.add('active');
-    if(!drawnTabs.has(tid)){
-      drawnTabs.add(tid);
-      if(tid==='tab2'){ setTimeout(()=>{ drawFeatImp(); drawScatter(); drawEngFeat(); drawHist(); },50); }
-      if(tid==='tab3'){ setTimeout(()=>{ renderT3(); },50); }
-      if(tid==='tab4'){ setTimeout(()=>{ drawSHAPBar(); drawSHAPDep(); },50); }
-    }
+function setupTabs(){
+  const tabBtns=document.querySelectorAll('.tab-btn');
+  const tabPanels=document.querySelectorAll('.tab-panel');
+  tabBtns.forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      tabBtns.forEach(b=>b.classList.remove('active'));
+      tabPanels.forEach(p=>p.classList.remove('active'));
+      btn.classList.add('active');
+      const tid=btn.dataset.tab;
+      document.getElementById(tid).classList.add('active');
+      if(!drawnTabs.has(tid)){
+        drawnTabs.add(tid);
+        if(tid==='tab2'){ setTimeout(()=>{ drawFeatImp(); drawScatter(); drawEngFeat(); drawHist(); },50); }
+        if(tid==='tab3'){ setTimeout(()=>{ renderT3(); },50); }
+        if(tid==='tab4'){ setTimeout(()=>{ drawSHAPBar(); drawSHAPDep(); },50); }
+      }
+    });
   });
-});
+}
 
 // RESIZE
 let rTimer;
 window.addEventListener('resize',()=>{
   clearTimeout(rTimer);
   rTimer=setTimeout(()=>{
+    if(!D) return;
     if(drawnTabs.has('tab1')){ drawAgeBar(t1Age); drawAdmitBar(t1Admit); drawDonut(); drawGender(); drawInpatient(); }
-    if(drawnTabs.has('tab2') && document.getElementById('tab2').classList.contains('active')){ drawFeatImp(document.getElementById('t2-method').value,+document.getElementById('t2-topn').value); drawScatter(); drawEngFeat(); drawHist(document.getElementById('dist-feat').value); }
-    if(drawnTabs.has('tab3') && document.getElementById('tab3').classList.contains('active')){ renderT3(); }
-    if(drawnTabs.has('tab4') && document.getElementById('tab4').classList.contains('active')){ drawSHAPBar(); drawSHAPDep(document.getElementById('shap-feat').value); }
+    if(drawnTabs.has('tab2')&&document.getElementById('tab2').classList.contains('active')){ drawFeatImp(document.getElementById('t2-method').value,+document.getElementById('t2-topn').value); drawScatter(); drawEngFeat(); drawHist(document.getElementById('dist-feat').value); }
+    if(drawnTabs.has('tab3')&&document.getElementById('tab3').classList.contains('active')){ renderT3(); }
+    if(drawnTabs.has('tab4')&&document.getElementById('tab4').classList.contains('active')){ drawSHAPBar(); drawSHAPDep(document.getElementById('shap-feat').value); }
   },200);
 });
 
-// INIT
-drawGauge(11.2);
-drawAgeBar();
-drawDonut();
-drawAdmitBar();
-drawGender();
-drawInpatient();
+// ── START ──
+loadData();
 </script>
 </body>
 </html>
